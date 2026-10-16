@@ -1,0 +1,77 @@
+name: CI
+
+# 作例が最新の mokume で組めるかを確かめる。
+#
+# mokume は日次でリリースが出て、作例は Package.resolved を持たず `from:` で追随する。
+# だから PR だけでなく毎日組み直し、組めなくなったら Issue で知らせる。
+#
+# 描画は確かめない。GitHub ホストの macOS ランナーには mokume が使える GPU が無いので、
+# 絵は手元の `mokume render` で見る。
+
+on:
+  pull_request:
+    # タイトルを直したときも検査し直す
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+  schedule:
+    # mokume のリリースは 06:40 UTC 前後。その後に組む
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # squash merge では PR タイトルがそのまま main のコミットの要約になる
+      - run: ./scripts/check-pr-title.sh
+
+  build:
+    # タイトルを直しただけなら組み直さない
+    if: github.event.action != 'edited'
+    # mokume の下限の OS と揃える。macOS の枠は mokume 本体の CI と分け合うので、ジョブは 1 本
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: ./scripts/build-all.sh
+
+  report:
+    needs: build
+    if: github.event_name == 'schedule' && failure()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: 最新の mokume で作例が組めない
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # 開いている同名の Issue があればコメントを足し、無ければ 1 本立てる。直ったら手で閉じる
+      - run: |
+          number="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq 'map(select(.title == env.TITLE)) | .[0].number // empty')"
+          body="日次の組み直しが落ちた: $RUN_URL"
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"$'\n\n直ったら手で閉じる。'
+          fi

@@ -1,0 +1,18 @@
+# workflow が使う GitHub Actions の版を週次で見張る。
+#
+# **Swift (mokume) は見張らない。** 作例は Package.resolved を持たず `from:` で最新の
+# リリースへ追随し、CI (ci.yml) が毎日組み直すので、版を上げる PR は要らない。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    # リリースから PR を立てるまで 7 日待つ。取り下げられる悪意あるリリースを避ける猶予で、
+    # security update には効かない (脆弱性の公表時はすぐ PR が立つ)
+    cooldown:
+      default-days: 7
+    # PR タイトルは scripts/check-pr-title.sh (Conventional Commits) を通る必要がある。
+    # 指定しないと Dependabot は履歴から推測するので、明示して固定する
+    commit-message:
+      prefix: build
