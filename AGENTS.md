@@ -20,3 +20,6 @@ scripts/build-all.sh          # 全作例が組めること (CI と同じ)
 scripts/api-index.py          # API.md を作り直す
 scripts/api-index.py --check  # API.md・主役の API のずれ (CI と同じ)
 ```
+
+CI が保証するのは「最新のリリースで組める」までで、描画の確認は手元の `mokume render` で行う
+(GitHub の macOS ランナーには mokume が使える GPU が無い)。
