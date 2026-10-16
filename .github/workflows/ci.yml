@@ -9,9 +9,8 @@ name: CI
 # 絵は手元の `mokume render` で見る。
 
 on:
+  # PR タイトルの検査は pr-title.yml にある
   pull_request:
-    # タイトルを直したときも検査し直す
-    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
   schedule:
@@ -27,22 +26,7 @@ permissions:
   contents: read
 
 jobs:
-  pr-title:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    env:
-      PR_TITLE: ${{ github.event.pull_request.title }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      # squash merge では PR タイトルがそのまま main のコミットの要約になる
-      - run: ./scripts/check-pr-title.sh
-
   build:
-    # タイトルを直しただけなら組み直さない
-    if: github.event.action != 'edited'
     # mokume の下限の OS と揃える。macOS の枠は mokume 本体の CI と分け合うので、ジョブは 1 本
     runs-on: macos-26
     timeout-minutes: 60

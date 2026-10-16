@@ -1,0 +1,30 @@
+name: PR title
+
+# PR タイトルの形を検査する。squash merge ではタイトルがそのまま main のコミットの要約になる。
+#
+# ci.yml から分けてあるのは、タイトルや本文の編集 (`edited`) で build を巻き込まないため。
+# 同じ workflow にすると、編集の実行が concurrency で走行中の build を取り消してしまう。
+
+on:
+  pull_request:
+    # タイトルを直したときも検査し直す
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: ./scripts/check-pr-title.sh
