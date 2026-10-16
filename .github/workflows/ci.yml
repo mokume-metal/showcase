@@ -1,6 +1,6 @@
 name: CI
 
-# 作例が最新の mokume で組めるかを確かめる。
+# 作例が最新の mokume で組めるかと、API ごとの目次 (API.md) が作例と mokume.org に合っているかを確かめる。
 #
 # mokume は日次でリリースが出て、作例は Package.resolved を持たず `from:` で追随する。
 # だから PR だけでなく毎日組み直し、組めなくなったら Issue で知らせる。
@@ -36,8 +36,20 @@ jobs:
           persist-credentials: false
       - run: ./scripts/build-all.sh
 
+  # 目次の並びと主役の API の名前は mokume.org の DocC から取るので、作例が変わらなくても
+  # mokume のリリースで改名・削除されればずれる。だから PR だけでなく毎日も見る
+  api-index:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: python3 scripts/test_api_index.py
+      - run: ./scripts/api-index.py --check
+
   report:
-    needs: build
+    needs: [build, api-index]
     if: github.event_name == 'schedule' && failure()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -46,14 +58,14 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      TITLE: 最新の mokume で作例が組めない
+      TITLE: 最新の mokume で作例が通らない
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       # 開いている同名の Issue があればコメントを足し、無ければ 1 本立てる。直ったら手で閉じる
       - run: |
           number="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
             --jq 'map(select(.title == env.TITLE)) | .[0].number // empty')"
-          body="日次の組み直しが落ちた: $RUN_URL"
+          body="日次の確認が落ちた: $RUN_URL"
           if [[ -n "$number" ]]; then
             gh issue comment "$number" --body "$body"
           else
