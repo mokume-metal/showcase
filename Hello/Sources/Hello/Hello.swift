@@ -9,6 +9,7 @@ final class Hello: Sketch {
 
     func draw() {
         background(15, 18, 23)
+        noSuchShowcaseAPI()
         fill(242, 115, 51)
         let angle = time * 0.8
         circle(width / 2 + cos(angle) * 160, height / 2 + sin(angle) * 120, 80)
