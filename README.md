@@ -16,7 +16,7 @@ mokume run <作例>
 
 ## 作例
 
-まだ無い。
+まだ無い。API ごとの目次は [API.md](API.md)。
 
 ---
 
